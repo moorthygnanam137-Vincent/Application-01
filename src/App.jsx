@@ -1,34 +1,24 @@
-import { useState } from "react";
 import Button from "./components/Button.jsx";
 import DropZone from "./components/DropZone.jsx";
 import History from "./components/History.jsx";
 import JobDescriptionInput from "./components/JobDescriptionInput.jsx";
-import ScoreCard from "./components/ScoreCard.jsx";
+import ResultsPanel from "./components/ResultsPanel.jsx";
+import SectionHeading from "./components/SectionHeading.jsx";
 import ThemeToggle from "./components/ThemeToggle.jsx";
 import { useAnalysis } from "./hooks/useAnalysis.js";
+import { useAnalysisForm } from "./hooks/useAnalysisForm.js";
 import { useTheme } from "./hooks/useTheme.js";
-import { MIN_JD_LENGTH } from "./lib/constants.js";
-import { SAMPLE_RESULT } from "./lib/sampleResult.js";
+import { useToggle } from "./hooks/useToggle.js";
 
+// The page composes components and hooks. Each hook owns one job:
+// useAnalysis runs the scoring, useAnalysisForm checks the inputs, useToggle and useTheme hold small UI state.
 export default function App() {
-  const [file, setFile] = useState(null);
-  const [jobDescription, setJobDescription] = useState("");
-  const [inputError, setInputError] = useState("");
-  const [showExample, setShowExample] = useState(false);
-  const { status, result, error, isLoading, run, report, reportError, reportLoading } = useAnalysis();
+  const analysis = useAnalysis();
+  const form = useAnalysisForm(analysis.run);
+  const [showExample, toggleExample] = useToggle();
   const { theme, toggle } = useTheme();
 
-  // Check the inputs first, then hand the work to the hook.
-  const handleCompare = () => {
-    setInputError("");
-    if (!file) return setInputError("Add your resume first.");
-    if (jobDescription.trim().length < MIN_JD_LENGTH) {
-      return setInputError("Paste a fuller job description (at least a few sentences).");
-    }
-    run(file, jobDescription);
-  };
-
-  const message = inputError || (status === "error" ? error : "");
+  const message = form.inputError || (analysis.status === "error" ? analysis.error : "");
 
   return (
     <main className="min-h-screen bg-page text-ink">
@@ -52,14 +42,14 @@ export default function App() {
           {/* Left: the inputs */}
           <div className="space-y-10">
             <div className="space-y-3">
-              <p className="font-display text-lg font-semibold">1. Your resume</p>
-              <DropZone file={file} onFile={setFile} />
+              <SectionHeading>1. Your resume</SectionHeading>
+              <DropZone file={form.file} onFile={form.setFile} />
             </div>
 
-            <JobDescriptionInput value={jobDescription} onChange={setJobDescription} />
+            <JobDescriptionInput value={form.jobDescription} onChange={form.setJobDescription} />
 
             <div className="flex flex-col items-start gap-3">
-              <Button onClick={handleCompare} loading={isLoading}>
+              <Button onClick={form.submit} loading={analysis.isLoading}>
                 Compare resume to job
               </Button>
               <p className="text-sm text-accent-ink min-h-[1.25rem]">{message}</p>
@@ -67,52 +57,12 @@ export default function App() {
           </div>
 
           {/* Right: the results. Nothing is shown here until a run starts or the example is requested. */}
-          <div className="space-y-6 md:sticky md:top-8">
-            <p className="font-display text-lg font-semibold">2. Your results</p>
-
-            {status === "loading" && (
-              <p className="text-muted">Reading your resume and scoring it…</p>
-            )}
-
-            {status === "done" && result && (
-              <>
-                <ScoreCard result={result} />
-                <div className="space-y-3 border-t-2 border-ink pt-6">
-                  <p className="font-display text-lg font-semibold">Written fit report</p>
-                  {reportLoading && <p className="text-muted">Writing your report…</p>}
-                  {reportError && <p className="text-accent-ink">{reportError}</p>}
-                  {report && (
-                    <pre className="whitespace-pre-wrap font-sans leading-relaxed text-ink">{report}</pre>
-                  )}
-                </div>
-              </>
-            )}
-
-            {status !== "loading" && status !== "done" && !showExample && (
-              <p className="text-muted">Add your resume and a job description, then compare them to see your scorecard here.</p>
-            )}
-
-            {status !== "done" && showExample && (
-              <div className="space-y-6">
-                <div className="space-y-1">
-                  <p className="text-sm uppercase tracking-widest text-accent">Example report</p>
-                  <p className="text-sm text-muted">This is a sample, not a real resume.</p>
-                </div>
-                <ScoreCard result={SAMPLE_RESULT} />
-              </div>
-            )}
-
-            {status !== "loading" && status !== "done" && (
-              <Button onClick={() => setShowExample((on) => !on)}>
-                {showExample ? "Hide example report" : "Show an example report"}
-              </Button>
-            )}
-          </div>
+          <ResultsPanel analysis={analysis} showExample={showExample} onToggleExample={toggleExample} />
         </section>
 
         <section className="space-y-4">
-          <p className="font-display text-lg font-semibold">Recent runs</p>
-          <History refreshKey={report} />
+          <SectionHeading>Recent runs</SectionHeading>
+          <History refreshKey={analysis.report} />
         </section>
       </div>
     </main>
