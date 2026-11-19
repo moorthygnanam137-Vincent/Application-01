@@ -2,7 +2,7 @@
   "rewrites": [
     {
       "source": "/api/:path*",
-      "destination": "https://zero-to-shipped-3-server.vercel.app/api/:path*"
+      "destination": "https://application-01-server.vercel.app/api/:path*"
     },
     {
       "source": "/(.*)",
